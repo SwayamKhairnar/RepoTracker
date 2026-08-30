@@ -6,6 +6,7 @@ import org.springframework.security.crypto.encrypt.TextEncryptor;
 
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.UUID;
 
 
@@ -21,5 +22,26 @@ public class UserService {
 
     public User findById(UUID id) {
         return userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    public User upsertFromGithub(Map<String, Object> attributes, String accessToken, String tokenScope) {
+
+        long githubId = ((Number) attributes.get("id")).longValue();
+        String githubUsername = (String) attributes.get("login");
+        String displayName = (String) attributes.get("name");
+        String avatarUrl = (String) attributes.get("avatar_url");
+
+        User user = userRepository.findByGithubId(githubId)
+                .orElseGet(() -> User.builder()
+                        .githubId(githubId)
+                        .build());
+
+        user.setGithubUsername(githubUsername);
+        user.setDisplayName(displayName);
+        user.setAvatarUrl(avatarUrl);
+        user.setAccessToken(textEncryptor.encrypt(accessToken));
+        user.setTokenScope(tokenScope);
+
+        return userRepository.save(user);
     }
 }
